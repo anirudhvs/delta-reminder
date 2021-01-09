@@ -3,5 +3,8 @@
 module.exports = {
     username: '',
     password: '',
-    fullString:''
+    fullString:'',
+    phone:'',
+    token = '',
+    instanceId = '' 
 }

@@ -1,9 +1,10 @@
-const express = require("express");
-const path = require("path");
-const cors = require("cors");
-const bodyParser = require("body-parser");
-const app = express();
-const mongoose = require("mongoose");
+const express = require('express')
+const path = require('path')
+const cors = require('cors')
+const bodyParser = require('body-parser')
+const app = express()
+const mongoose = require('mongoose')
+const request = require('request')
 
 const { User, Event } = require("./models/index.js");
 
@@ -30,16 +31,13 @@ app.set("view engine", "ejs");
 
 const PORT = process.env.PORT || 8000;
 
-const mongoKeys = require("./config/keys.js");
+const keys = require("./config/keys.js");
 
-mongoose
-	.connect(mongoKeys.fullString, {
-		useNewUrlParser: true,
-		useUnifiedTopology: true,
-		useFindAndModify: false,
-	})
-	.then(() => console.log("Connected to MongoDB"))
-	.catch((err) => console.log(err));
+var url = `https://api.chat-api.com/instance${keys.instanceId}/message?token=${keys.token}`;
+
+mongoose.connect(keys.fullString, { useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: false })
+    .then(() => console.log("Connected to MongoDB"))
+    .catch(err => console.log(err))
 
 //Return all events
 app.get("/event", (req, res) => {
@@ -163,28 +161,35 @@ app.get("/event/:eventId", (req, res) => {
 });
 
 //Create a event
-app.post("/event", async (req, res) => {
-	const user = await User.findOne({
-		name: req.body.user,
-		rollno: req.body.rollno,
-	});
-	var event = new Event({
-		name: req.body.name,
-		isPublic: req.body.isPublic,
-		description: req.body.content,
-		deadline: req.body.date,
-		url: req.body.url,
-		createdBy: user._id,
-	});
-	const saved_event = await event.save();
-	if (!saved_event.isPublic) {
-		await User.findOneAndUpdate(
-			{ name: req.body.user },
-			{ $push: { privateEvents: saved_event._id } }
-		);
-	}
-	res.send("sent");
-});
+app.post('/event', async(req, res) => {
+    const user = await User.findOne({ name: req.body.user, rollno: req.body.rollno })
+    var event = new Event({
+        name: req.body.name,
+        isPublic: req.body.isPublic,
+        description: req.body.content,
+        deadline: req.body.date,
+        url: req.body.url,
+        createdBy: user._id,
+    })
+    const saved_event = await event.save()
+    if (!saved_event.isPublic) {
+        await User.findOneAndUpdate({ name: req.body.user }, { $push: { privateEvents: saved_event._id } })
+        var data = {
+            phone: keys.phone,
+            body: "*" + saved_event.name + "* \n\n" + saved_event.url + " \n\n" + saved_event.description,
+        };
+        request({
+            url: url,
+            method: "POST",
+            json: data
+        },(err,res,body)=>{
+            if(err)
+            console.error(err)           
+            else console.log(body)
+        })
+    }
+    res.send('sent')
+})
 
 //Create a user
 app.post("/add/user", async (req, res) => {
